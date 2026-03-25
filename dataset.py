@@ -1,60 +1,68 @@
-import torch # Thư viện PyTorch để xây dựng và huấn luyện mô hình học sâu
-from PIL import Image # Thư viện để mở và thao tác với các tệp hình ảnh
-from torchvision.transforms.functional import to_tensor # Hàm chuyển đổi ảnh PIL hoặc mảng thành Tensor
+import torch # PyTorch library for building and training deep learning models
+from PIL import Image # Library for opening and manipulating image files
+from torchvision.transforms.functional import to_tensor # Function to convert PIL images or arrays to Tensors
+from utils import resize_box_xyxy
+from args import args
 
-
-class ObjDetectionDataset(torch.utils.data.Dataset): # Định nghĩa lớp Dataset tùy chỉnh kế thừa từ PyTorch
+class ObjDetectionDataset(torch.utils.data.Dataset): # Custom Dataset class inheriting from PyTorch's Dataset
     def __init__(self, df):
-        # Khởi tạo lớp với một bảng dữ liệu (DataFrame) và làm mới lại chỉ số (index)
+        # Initialize the class with a DataFrame and reset the index
         self.df = df.reset_index(drop=True)
 
     def __len__(self):
-        # Trả về tổng số lượng mẫu (dòng) có trong tập dữ liệu
+        # Return the total number of samples (rows) in the dataset
         return len(self.df)
 
     def __getitem__(self, idx):
-        # --- TODO 1: Lấy dòng dữ liệu tại vị trí idx từ dataframe ---
-        # (Tại đây bạn cần dùng lệnh để truy xuất dữ liệu hàng thứ idx, ví dụ: row = self.df.iloc[idx])
-        # your code here
+        # --- TODO 1: Retrieve the data row at position idx from the dataframe ---
         row = self.df.iloc[idx]
-        # Mở tệp hình ảnh dựa trên đường dẫn trong cột "image_path" và chuyển sang hệ màu RGB
+        
+        # Open image file from the path in the "images" column and convert to RGB color mode
         img = Image.open(row["images"]).convert("RGB")
-        # Lấy kích thước chiều rộng (w) và chiều cao (h) của ảnh gốc
+        
+        # Get the original width (w) and height (h) of the image
         w, h = img.size
-        # Chuyển đổi ảnh vừa mở sang dạng Tensor (dữ liệu số mà AI có thể tính toán)
+        
+        # Resize image to the standard size defined in args.py
+        img = img.resize((args.image_size, args.image_size))
+
+        # Convert the resized image to a Tensor (numerical data for AI computation)
         image = to_tensor(img)
 
-        # Khởi tạo danh sách rỗng để chứa tọa độ khung bao (boxes) và nhãn (labels)
+        # Initialize empty lists to store bounding box coordinates and class labels
         boxes, labels = [], []
-        # Mở tệp chứa nhãn tương ứng dựa trên đường dẫn trong cột "label_path"
+        
+        # Open the corresponding label file from the path in the "labels" column
         with open(row["labels"]) as f:
             for line in f:
-                # Đọc từng dòng, tách các giá trị (class_id, x_center, y_center, width, height)
+                # Read each line, split values (class_id, x_center, y_center, width, height)
                 cls, xc, yc, bw, bh = map(float, line.split())
                 
-                # Chuyển đổi tọa độ từ định dạng chuẩn hóa (0 đến 1) sang tọa độ điểm ảnh thực tế (pixel)
-                # Tính toán x1, y1 (góc trên bên trái) và x2, y2 (góc dưới bên phải) của khung bao
+                # Convert normalized coordinates (0 to 1) to actual pixel coordinates
+                # Calculate x1, y1 (top-left) and x2, y2 (bottom-right) of the bounding box
                 x1 = (xc - bw/2) * w
                 y1 = (yc - bh/2) * h
                 x2 = (xc + bw/2) * w
                 y2 = (yc + bh/2) * h
                 
-                # Thêm tọa độ khung bao vào danh sách
+                # Recalculate coordinates to match the new image size (e.g., 512x512)
+                x1, y1, x2, y2 = resize_box_xyxy((x1, y1, x2, y2), w, h, args.image_size, args.image_size)
+                
+                # Add bounding box coordinates to the list
                 boxes.append([x1, y1, x2, y2])
-                # Thêm nhãn lớp vào danh sách (thường cộng 1 để phân biệt với lớp nền/background)
+                
+                # Add class label to the list (adding 1 to distinguish from background class)
                 labels.append(int(cls) + 1)
 
-        # Đóng gói dữ liệu mục tiêu (target) vào một từ điển (dictionary)
+        # Wrap target data into a dictionary
         target = {
-            # Chuyển danh sách khung bao thành Tensor kiểu số thực 32-bit
+            # Convert bounding box list to a 32-bit float Tensor
             "boxes": torch.tensor(boxes, dtype=torch.float32),
-            # Chuyển danh sách nhãn thành Tensor kiểu số nguyên 64-bit
+            # Convert label list to a 64-bit integer Tensor
             "labels": torch.tensor(labels, dtype=torch.int64),
-            # Lưu lại chỉ số của ảnh để quản lý
+            # Store the image index for management purposes
             "image_id": torch.tensor([idx]),
         }
         
-        # --- TODO 2: return what you need form this class ---
-        # Your code here (Thường sẽ trả về cặp dữ liệu: image, target)
-
+        # --- TODO 2: Return the processed data pair: image and target ---
         return image, target

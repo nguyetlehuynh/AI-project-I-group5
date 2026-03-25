@@ -3,20 +3,20 @@ import os
 import torch
 import torch.optim as optim
 
-# Tuần sau, sẽ Project Submission Phases. Upload files to Github respository cá nhân.
-
 def validate_model(model, val_loader, device):
     """
-    Hàm đánh giá mô hình trên tập dữ liệu kiểm thử (Validation).
+    Function to evaluate the model on the Validation dataset.
     """
-    model.eval() # Chuyển mô hình sang chế độ đánh giá (tắt Dropout, Batchnorm)
+    # Set to .train() even during validation to ensure the model returns 
+    # Loss values (required for plotting learning curves) instead of predictions.
+    model.train() 
     val_loss_sum = 0.0
     val_count = 0
     
-    # Tắt tính toán đạo hàm để tiết kiệm bộ nhớ và tăng tốc độ khi test
+    # Disable gradient calculation to save memory and speed up evaluation
     with torch.no_grad():
         for images, targets in val_loader:
-            # Đưa ảnh và nhãn (boxes, labels) vào GPU/CPU và định dạng kiểu dữ liệu
+            # Move images and targets (boxes, labels) to GPU/CPU and format data types
             images = [image.to(device=device, dtype=torch.float32) for image in images]
             targets = [
                 {
@@ -26,36 +26,36 @@ def validate_model(model, val_loader, device):
                 for target in targets
             ]
             
-            # Dự đoán và lấy từ điển các giá trị lỗi (loss dict)
+            # Forward pass: get the dictionary of loss values
             loss_dict = model(images, targets)
-            # Tổng hợp các loại lỗi (classification, box regression,...) thành 1 số duy nhất
+            # Sum up all loss components (classification, box regression, etc.) into a single scalar
             loss = sum(loss_value for loss_value in loss_dict.values())
             
-            # Cộng dồn lỗi để tính trung bình sau này
+            # Accumulate loss to calculate the average later
             val_loss_sum += loss.item() * len(images)
             val_count += len(images)
 
-    # Tính lỗi trung bình trên toàn bộ tập validation
+    # Calculate the average loss across the entire validation set
     val_epoch_loss = val_loss_sum / val_count
     return val_epoch_loss
 
 def train_model(model, train_loader, val_loader, device):
     """
-    Hàm chính thực hiện quá trình huấn luyện mô hình qua nhiều Epoch.
+    Main function to execute the model training process over multiple Epochs.
     """
-    args = args() # Lấy các tham số cấu hình (lr, epochs,...)
-    model = model.to(device) # Đưa mô hình vào thiết bị tính toán
+    model = model.to(device) # Move the model to the target device (GPU or CPU)
     
-    # Khởi tạo bộ tối ưu hóa Adam với các tham số từ args
+    # Initialize the Adam optimizer with parameters defined in args.py
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
-    best_val_loss = float('inf') # Khởi tạo lỗi tốt nhất là vô cùng để so sánh
+    best_val_loss = float('inf') # Initialize best loss as infinity for comparison
 
     for epoch in range(args.epochs):
-        model.train() # Chuyển mô hình sang chế độ huấn luyện
+        model.train() # Set the model to training mode
         running_loss = 0.0
         
+        # Iterate through batches provided by the train_loader (linked from main.py)
         for images, targets in train_loader:
-            # Chuẩn bị dữ liệu cho mỗi Batch (tương tự phần validate)
+            # Prepare data for each Batch (similar to the validation phase)
             images = [image.to(device=device, dtype=torch.float32) for image in images]
             targets = [
                 {
@@ -65,27 +65,29 @@ def train_model(model, train_loader, val_loader, device):
                 for target in targets
             ]
 
-            optimizer.zero_grad() # Xóa đạo hàm cũ của bước trước
-            loss_dict = model(images, targets) # Forward pass: Tính lỗi
+            optimizer.zero_grad() # Clear gradients from the previous step
+            loss_dict = model(images, targets) # Forward pass: Compute losses
             loss = sum(loss_value for loss_value in loss_dict.values())
             
-            loss.backward() # Backward pass: Tính toán đạo hàm (lan truyền ngược)
-            optimizer.step() # Cập nhật trọng số mô hình
+            loss.backward() # Backward pass: Compute gradients (Backpropagation)
+            optimizer.step() # Update model weights
 
             running_loss += loss.item() * len(images)
 
-        # Tính toán và hiển thị kết quả sau mỗi Epoch
+        # Calculate and display results after each Epoch
         train_epoch_loss = running_loss / len(train_loader.dataset)
+
+        # Execute Validation phase
         val_loss = validate_model(model, val_loader, device)
 
-        # Nếu mô hình hiện tại tốt hơn (loss thấp hơn), tiến hành lưu lại
+        # If current performance is better (lower loss), save the model checkpoint
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             os.makedirs(args.out_dir, exist_ok=True)
-            # Lưu bộ trọng số (state_dict) vào file .pth
+            # Save the model's state_dict to a .pth file
             torch.save(model.state_dict(), os.path.join(args.out_dir, 'best_model.pth'))
 
-        # In thông tin tiến trình ra màn hình
+        # Print progress to the console
         print(f"Epoch {epoch + 1}/{args.epochs} | "
               f"Train Loss: {train_epoch_loss:.4f} | "
               f"Val Loss: {val_loss:.4f}")

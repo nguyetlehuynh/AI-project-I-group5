@@ -1,36 +1,41 @@
-import torch
+# Parameter Configuration
+    # Directories: Paths to data folders.
+    # Epochs: Number of training iterations over the full dataset.
+    # Fine-tuning parameters: Settings to optimize the model.
 
-class Args:
-    def __init__(self):
-        # --- [SỬA ĐỔI] THIẾT LẬP THIẾT BỊ (DEVICE) ---
-        # Thay vì ép buộc dùng "cuda", dòng này sẽ tự kiểm tra máy local.
-        # Nếu không có card đồ họa rời, nó sẽ tự chọn "cpu" để không bị báo lỗi đỏ.
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # --- [THÊM MỚI] SỐ VÒNG LẶP (EPOCHS) ---
-        # Đặt là 2 để chạy thử nghiệm quy trình (workflow) trên máy local cho nhẹ.
-        # Sau này khi nộp bài hoặc dùng Google Colab, chỉ cần sửa số này lên cao hơn.
-        self.epochs = 2
-        
-        # --- [THÊM MỚI] THÔNG SỐ HUẤN LUYỆN ---
-        self.batch_size = 4  # Số lượng ảnh xử lý cùng lúc (để nhỏ để tránh treo máy CPU).
-        self.lr = 0.001      # Tốc độ học (Learning Rate).
-        self.img_size = 416  # Kích thước ảnh chuẩn hóa cho mô hình[cite: 1, 70].
-        
-        # --- [SỬA ĐỔI] ĐƯỜNG DẪN DỮ LIỆU (PATHS) ---
-        # Thêm "data/" vào trước các đường dẫn để khớp với cấu trúc thư mục local.
-        self.train_csv = "data/train_df.csv"
-        self.val_csv = "data/val_df.csv"
-        self.img_dir = "data/images/"
-        self.label_dir = "data/labels/"
-        
-        # --- [THÊM MỚI] LƯU TRỮ KẾT QUẢ ---
-        # Tên file sẽ chứa "bộ não" của AI sau khi học xong.
-        self.model_save_path = "paper_model.pth"
+import argparse # Library to handle command-line arguments
 
-    def __str__(self):
-        return f"Using device: {self.device} | Epochs: {self.epochs} | Batch Size: {self.batch_size}"
+def get_args():
+    # Create the parser object to define program parameters
+    parser = argparse.ArgumentParser(description="Model training options")
+    parser.add_argument('--backbone', type=str, default='fasterrcnn_resnet_fpn', choices=['fasterrcnn_resnet_fpn'])
 
-# --- [THÊM MỚI] KHỞI TẠO INSTANCE ---
-# Giúp các file main.py, dataset.py chỉ cần import "args" là dùng được ngay, rất sạch sẽ.
-args = Args()
+    # --- DATA PATH CONFIGURATION ---
+
+    # Number of target classes (excluding background)
+    parser.add_argument('--num_classes', type=int, default=1)
+    # Image resolution for resizing
+    parser.add_argument('--image_size', type=int, default=512)
+
+    # Path to the directory containing CSV data files
+    parser.add_argument('--csv_dir', type=str, default='data/CSVs')
+    # Path to the directory where results (model, logs) will be saved
+    parser.add_argument('--out_dir', type=str, default='./sessions')
+
+    # --- TRAINING PARAMETERS (HYPERPARAMETERS) ---
+    # Number of samples processed in one weight update step
+    parser.add_argument('--batch_size', type=int, default=8, choices=[8, 16, 32, 64])
+    # Total number of training iterations over the entire dataset
+    parser.add_argument('--epochs', type=int, default=12)
+    
+    # --- OPTIMIZATION PARAMETERS ---
+    # Learning Rate: Determines the step size for model adjustment in each step
+    parser.add_argument('--lr', type=float, default=0.0001)
+    # Weight Decay: Regularization technique to prevent overfitting
+    parser.add_argument('--wd', type=float, default=1e-4)
+
+    # Return all collected parameters for use in other files
+    return parser.parse_args()
+
+# Initialize the 'args' variable from the function output
+args = get_args()
