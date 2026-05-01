@@ -8,8 +8,8 @@ import argparse # Library to handle command-line arguments
 def get_args():
     # Create the parser object to define program parameters
     parser = argparse.ArgumentParser(description="Model training options")
-    parser.add_argument('--backbone', type=str, default='fasterrcnn_resnet_fpn', choices=['fasterrcnn_resnet_fpn'])
-
+    # parser.add_argument('--backbone', type=str, default='fasterrcnn_resnet_fpn', choices=['fasterrcnn_resnet_fpn'])
+    parser.add_argument('--backbone', type=str, default='fasterrcnn_resnet50_fpn', choices=['fasterrcnn_resnet50_fpn'])
     # --- DATA PATH CONFIGURATION ---
 
     # Number of target classes (excluding background)
@@ -24,15 +24,15 @@ def get_args():
 
     # --- TRAINING PARAMETERS (HYPERPARAMETERS) ---
     # Number of samples processed in one weight update step
-    parser.add_argument('--batch_size', type=int, default=8, choices=[8, 16, 32, 64])
+    parser.add_argument('--batch_size', type=int, default=16, choices=[8, 16, 32, 64])
     # Total number of training iterations over the entire dataset
-    parser.add_argument('--epochs', type=int, default=12)
+    parser.add_argument('--epochs', type=int, default=50)
     
     # --- OPTIMIZATION PARAMETERS ---
     # Learning Rate: Determines the step size for model adjustment in each step
-    parser.add_argument('--lr', type=float, default=0.0001)
+    parser.add_argument('--lr', type=float, default=0.00005)
     # Weight Decay: Regularization technique to prevent overfitting
-    parser.add_argument('--wd', type=float, default=1e-4)
+    parser.add_argument('--wd', type=float, default=5e-4)
 
     # Return all collected parameters for use in other files
     return parser.parse_args()

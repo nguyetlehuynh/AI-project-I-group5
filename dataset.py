@@ -3,11 +3,18 @@ from PIL import Image # Library for opening and manipulating image files
 from torchvision.transforms.functional import to_tensor # Function to convert PIL images or arrays to Tensors
 from utils import resize_box_xyxy
 from args import args
+from PIL import Image, ImageOps
+import augmentations as aug
 
 class ObjDetectionDataset(torch.utils.data.Dataset): # Custom Dataset class inheriting from PyTorch's Dataset
-    def __init__(self, df):
+    def __init__(self, df, transform=None):
         # Initialize the class with a DataFrame and reset the index
         self.df = df.reset_index(drop=True)
+
+        if transform is None:
+            self.transform = aug.NoTransform
+        else:
+            self.transform = aug.Compose(transform)
 
     def __len__(self):
         # Return the total number of samples (rows) in the dataset
@@ -19,6 +26,9 @@ class ObjDetectionDataset(torch.utils.data.Dataset): # Custom Dataset class inhe
         
         # Open image file from the path in the "images" column and convert to RGB color mode
         img = Image.open(row["images"]).convert("RGB")
+        
+        # Handle EXIF orientation to prevent bounding box misalignment caused by auto-rotation
+        img = ImageOps.exif_transpose(img)
         
         # Get the original width (w) and height (h) of the image
         w, h = img.size
@@ -65,4 +75,5 @@ class ObjDetectionDataset(torch.utils.data.Dataset): # Custom Dataset class inhe
         }
         
         # --- TODO 2: Return the processed data pair: image and target ---
+        image, target = self.transform(image, target)
         return image, target

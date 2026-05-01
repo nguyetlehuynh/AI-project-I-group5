@@ -2,10 +2,17 @@ import os
 import csv
 
 # Define data paths
-image_dir = "data/images"
-label_dir = "data/labels"
-csv_output_dir = "data/CSVs"
-csv_path = "data/CSVs/dataset.csv"
+# image_dir = "data/images"
+# label_dir = "data/labels"
+# csv_output_dir = "data/CSVs"
+# csv_path = "data/CSVs/dataset.csv"
+
+base_dir = os.getcwd() 
+
+image_dir = os.path.join(base_dir, "data/images")
+label_dir = os.path.join(base_dir, "data/labels")
+csv_output_dir = os.path.join(base_dir, "data/CSVs")
+csv_path = os.path.join(csv_output_dir, "dataset.csv")
 
 # Check if the image directory exists
 if not os.path.exists(image_dir):
@@ -29,8 +36,10 @@ else:
             label = file_name + ".txt"
             
             # Construct paths and ensure forward slashes are used for cross-platform compatibility
-            img_path = os.path.join(image_dir, img).replace("\\", "/")
-            label_path = os.path.join(label_dir, label).replace("\\", "/")
+            # img_path = os.path.join(image_dir, img).replace("\\", "/")
+            # label_path = os.path.join(label_dir, label).replace("\\", "/")
+            img_path = os.path.abspath(os.path.join(image_dir, img))
+            label_path = os.path.abspath(os.path.join(label_dir, label))
             
             # Write the image path and corresponding label path to the CSV
             writer.writerow([img_path, label_path])
