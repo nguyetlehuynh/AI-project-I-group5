@@ -1,0 +1,2 @@
+timestamp,backbone,lr,batch_size,epochs,best_val_loss
+2026-05-01 16:10:53,fasterrcnn_resnet50_fpn,5e-05,16,50,0.0743
